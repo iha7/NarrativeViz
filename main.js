@@ -297,34 +297,112 @@ function renderScene3() {
  * Renders Scene 4: Towards Sustainable Cities
  * Concluding remarks on the importance of sustainable urban development.
  */
+
+
 function renderScene4() {
-    g.html(""); // Clear previous scene content
-    vizTitle.text("Scene 4: Towards Sustainable Cities");
+    g.selectAll("*").remove();
+    vizTitle.text("Scene 4: Explore the Data");
 
-    // Concluding text - Visual structure/narrative reinforcement
-    g.append("text")
-        .attr("x", width / 2)
-        .attr("y", height / 3)
-        .attr("text-anchor", "middle")
-        .attr("font-size", "2em")
-        .attr("font-weight", "bold")
-        .attr("fill", "#333")
-        .text("The Path to Sustainable Urbanization");
+    d3.select("#metric-select").remove();
 
-    g.append("text")
-        .attr("x", width / 2)
-        .attr("y", height / 2)
-        .attr("text-anchor", "middle")
-        .attr("font-size", "1.1em")
-        .attr("fill", "#555")
-        .html("Global urbanization presents both immense challenges and unprecedented opportunities.<br>" +
-              "Embracing **sustainable practices**, investing in **renewable energy**, and developing **efficient urban infrastructure**<br>" +
-              "are critical steps towards a livable and prosperous future for all.<br><br>" +
-              "Thank you for exploring this narrative. Use the 'Previous' button to revisit the data.");
+    d3.select("#controls")
+        .append("select")
+        .attr("id", "metric-select")
+        .style("margin-left", "10px");
+
+    const options = ["Urban Population", "Rural Population", "Energy Consumption", "CO2 Emissions"];
+    const accessors = {
+        "Urban Population": d => parseFloat(d.urban_population_billion),
+        "Rural Population": d => parseFloat(d.rural_population_billion),
+        "Energy Consumption": d => parseFloat(d.global_energy_consumption_quads), // Changed!
+        "CO2 Emissions": d => parseFloat(d.global_co2_emission_gt) // Changed!
+    };
+
+    d3.select("#metric-select")
+        .selectAll("option")
+        .data(options)
+        .enter()
+        .append("option")
+        .text(d => d)
+        .attr("value", d => d);
+
+    const xScale = d3.scaleLinear()
+        .domain(d3.extent(rawData, d => +d.year))
+        .range([0, width]);
+
+    const yScale = d3.scaleLinear().range([height, 0]);
+    const xAxis = d3.axisBottom(xScale);
+    const yAxisGroup = g.append("g").attr("class", "y-axis");
+
+    g.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(xAxis);
+
+    const circle = g.append("circle")
+        .attr("r", 5)
+        .attr("fill", "orange")
+        .style("opacity", 0);
+
+    function updateLine(metric) {
+        const accessor = accessors[metric];
+        const data = rawData
+            .map(d => ({ year: +d.year, value: accessor(d) }))
+            .filter(d => !isNaN(d.year) && !isNaN(d.value));
+
+        if (data.length === 0) {
+            console.warn("No valid data points for:", metric);
+            return;
+        }
+
+        const yDomain = d3.extent(data, d => d.value);
+        yScale.domain(yDomain).nice();
+        yAxisGroup.transition().call(d3.axisLeft(yScale));
+
+        g.selectAll(".data-line").remove();
+
+        const line = d3.line()
+            .x(d => xScale(d.year))
+            .y(d => yScale(d.value));
+
+        g.append("path")
+            .datum(data)
+            .attr("class", "data-line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2)
+            .attr("d", line);
+
+        g.selectAll(".hover-point").remove();
+        g.selectAll(".hover-point")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("class", "hover-point")
+            .attr("cx", d => xScale(d.year))
+            .attr("cy", d => yScale(d.value))
+            .attr("r", 8)
+            .attr("fill", "transparent")
+            .on("mouseover", (event, d) => {
+                circle
+                    .attr("cx", xScale(d.year))
+                    .attr("cy", yScale(d.value))
+                    .style("opacity", 1);
+                tooltip.style("opacity", 1).html(`Year: ${d.year}<br>${metric}: ${d.value.toLocaleString(undefined, {maximumFractionDigits: 2})}`).style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", () => {
+                circle.style("opacity", 0);
+                tooltip.style("opacity", 0);
+            });
+    }
+
+    updateLine("Urban Population");
+
+    d3.select("#metric-select").on("change", function () {
+        updateLine(this.value);
+    });
 
     updateNavigation();
 }
-
 
 // Array of scene rendering functions - Parameter for scene management
 const scenes = [renderScene1, renderScene2, renderScene3, renderScene4];
