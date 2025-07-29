@@ -34,6 +34,7 @@ const tooltip = d3.select("#tooltip"); // Tooltip element
  */
 function renderScene1() {
     g.html(""); // Clear previous scene content for visual consistency
+    d3.select("#metric-select").remove();
     vizTitle.text("Scene 1: The Global Urban Shift (1950-2020)");
 
     // Scales - Parameters controlling visual mapping
@@ -130,6 +131,7 @@ function renderScene1() {
  */
 function renderScene2() {
     g.html(""); // Clear previous scene content
+    d3.select("#metric-select").remove();
     vizTitle.text("Scene 2: Urban Footprint - Global Energy Consumption");
 
     // Scales
@@ -175,17 +177,18 @@ function renderScene2() {
         .attr("y", d => yScale(d.global_energy_consumption_quads))
         .attr("width", xScale.bandwidth())
         .attr("height", d => height - yScale(d.global_energy_consumption_quads))
-        .on("mouseover", function(event, d) { // Trigger for tooltip interaction
-            d3.select(this).transition().duration(100).attr("fill", "#c23a3a"); // Darker red on hover
+        .on("mouseover", function(event, d) {
+
+            const [mouseX, mouseY] = d3.pointer(event);
             tooltip.style("opacity", 1)
                 .html(`Year: ${d.year}<br>Energy: ${d.global_energy_consumption_quads.toFixed(1)} Quads`)
-                .style("left", (event.pageX + 15) + "px") // Position tooltip relative to mouse
-                .style("top", (event.pageY - 28) + "px");
+                .style("left", (mouseX + margin.left + 10) + "px")
+                .style("top", (mouseY + margin.top - 28) + "px");
         })
-        .on("mouseout", function() { // Trigger to hide tooltip
-            d3.select(this).transition().duration(100).attr("fill", "#f08080"); // Back to original color
+        .on("mouseout", function(event, d) {
             tooltip.style("opacity", 0);
         });
+
 
     // Annotations for Scene 2
     const annotations = [
@@ -215,6 +218,7 @@ function renderScene2() {
  */
 function renderScene3() {
     g.html(""); // Clear previous scene content
+    d3.select("#metric-select").remove();
     vizTitle.text("Scene 3: The CO2 Consequence");
 
     // Scales for scatterplot
@@ -259,17 +263,25 @@ function renderScene3() {
         .attr("cy", d => yScale(d.global_co2_emission_gt))
         .attr("r", 6) // Slightly larger radius
         .attr("opacity", 0.8)
-        .on("mouseover", function(event, d) { // Trigger for tooltip interaction
-            d3.select(this).transition().duration(100).attr("r", 9).attr("fill", "#2e8b57"); // Darker green on hover
+        .on("mouseover", function(event, d) {
+            d3.select(this)
+                .attr("r", 9)
+                .attr("fill", "#2e8b57");
+
+            const [mouseX, mouseY] = d3.pointer(event);
+
             tooltip.style("opacity", 1)
                 .html(`Year: ${d.year}<br>Energy: ${d.global_energy_consumption_quads.toFixed(1)} Quads<br>CO2: ${d.global_co2_emission_gt.toFixed(1)} Gt`)
-                .style("left", (event.pageX + 15) + "px")
-                .style("top", (event.pageY - 28) + "px");
+                .style("left", (mouseX + margin.left + "px"))
+                .style("top", (mouseY + margin.top - 10) + "px");
         })
-        .on("mouseout", function() { // Trigger to hide tooltip
-            d3.select(this).transition().duration(100).attr("r", 6).attr("fill", "#66cdaa"); // Back to original color
+        .on("mouseout", function() {
+            d3.select(this)
+                .attr("r", 6)
+                .attr("fill", "#66cdaa");
             tooltip.style("opacity", 0);
         });
+
 
     // Annotations for Scene 3
     const annotations = [
@@ -298,7 +310,6 @@ function renderScene3() {
  * Concluding remarks on the importance of sustainable urban development.
  */
 
-
 function renderScene4() {
     g.selectAll("*").remove();
     vizTitle.text("Scene 4: Explore the Data");
@@ -314,8 +325,35 @@ function renderScene4() {
     const accessors = {
         "Urban Population": d => parseFloat(d.urban_population_billion),
         "Rural Population": d => parseFloat(d.rural_population_billion),
-        "Energy Consumption": d => parseFloat(d.global_energy_consumption_quads), // Changed!
-        "CO2 Emissions": d => parseFloat(d.global_co2_emission_gt) // Changed!
+        "Energy Consumption": d => parseFloat(d.global_energy_consumption_quads),
+        "CO2 Emissions": d => parseFloat(d.global_co2_emission_gt)
+    };
+
+    const annotationsData = {
+        "Urban Population": {
+            year: 2007,
+            valueKey: "urban_population_billion",
+            title: "Urban Boom",
+            label: "Urban population surpassed rural around 2007, marking a pivotal demographic shift."
+        },
+        "Rural Population": {
+            year: 1995,
+            valueKey: "rural_population_billion",
+            title: "Stabilizing Rural Growth",
+            label: "Rural population growth plateaued post-1990, contrasting with urban acceleration."
+        },
+        "Energy Consumption": {
+            year: 1980,
+            valueKey: "global_energy_consumption_quads",
+            title: "Energy Surge",
+            label: "Energy consumption sharply increased from 1980 onward, driven by urbanization and industrialization."
+        },
+        "CO2 Emissions": {
+            year: 2020,
+            valueKey: "global_co2_emission_gt",
+            title: "Rising Emissions",
+            label: "CO2 emissions have steadily risen with energy use, reaching peak levels by 2020."
+        }
     };
 
     d3.select("#metric-select")
@@ -359,6 +397,8 @@ function renderScene4() {
         yAxisGroup.transition().call(d3.axisLeft(yScale));
 
         g.selectAll(".data-line").remove();
+        g.selectAll(".hover-point").remove();
+        g.selectAll(".annotation-group").remove();
 
         const line = d3.line()
             .x(d => xScale(d.year))
@@ -372,7 +412,6 @@ function renderScene4() {
             .attr("stroke-width", 2)
             .attr("d", line);
 
-        g.selectAll(".hover-point").remove();
         g.selectAll(".hover-point")
             .data(data)
             .enter()
@@ -393,6 +432,29 @@ function renderScene4() {
                 circle.style("opacity", 0);
                 tooltip.style("opacity", 0);
             });
+
+        // Annotation
+        const ann = annotationsData[metric];
+        const yVal = rawData.find(d => d.year === ann.year)?.[ann.valueKey];
+
+        if (yVal) {
+            const annotations = [
+                {
+                    note: {
+                        title: ann.title,
+                        label: ann.label,
+                        wrap: 200
+                    },
+                    x: xScale(ann.year),
+                    y: yScale(yVal),
+                    dx: -100,
+                    dy: -30,
+                    subject: { radius: 6 }
+                }
+            ];
+            const makeAnnotations = d3.annotation().annotations(annotations);
+            g.append("g").attr("class", "annotation-group").call(makeAnnotations);
+        }
     }
 
     updateLine("Urban Population");
@@ -403,7 +465,6 @@ function renderScene4() {
 
     updateNavigation();
 }
-
 // Array of scene rendering functions - Parameter for scene management
 const scenes = [renderScene1, renderScene2, renderScene3, renderScene4];
 
