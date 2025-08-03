@@ -145,9 +145,13 @@ function renderScene2() {
 
     // Draw axes
     g.append("g")
-        .attr("class", "x-axis axis")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(xScale).tickValues(xScale.domain().filter((d, i) => !(i % 10))).tickSizeOuter(0));
+    .attr("class", "x-axis axis")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(xScale)
+        .tickValues(rawData.map(d => d.year))     // Use all years
+        .tickFormat(d3.format("d"))               // Remove comma formatting
+    );
+    
     g.append("g")
         .attr("class", "y-axis axis")
         .call(d3.axisLeft(yScale).tickSizeOuter(0));
@@ -369,12 +373,32 @@ function renderScene4() {
         .range([0, width]);
 
     const yScale = d3.scaleLinear().range([height, 0]);
-    const xAxis = d3.axisBottom(xScale);
+    // remove the comma from x axis years
+    const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d"));
     const yAxisGroup = g.append("g").attr("class", "y-axis");
 
+
+    // Draw x-axis
     g.append("g")
         .attr("transform", `translate(0,${height})`)
         .call(xAxis);
+
+    // X-axis label
+    g.append("text")
+        .attr("class", "x-axis-label")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom - 20)
+        .attr("text-anchor", "middle")
+        .text("Year");
+
+    // Y-axis label
+    const yAxisLabel = g.append("text")
+        .attr("class", "y-axis-label")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 20)
+        .attr("x", -height / 2)
+        .attr("dy", "1em")
+        .attr("text-anchor", "middle");
 
     const circle = g.append("circle")
         .attr("r", 5)
@@ -395,6 +419,17 @@ function renderScene4() {
         const yDomain = d3.extent(data, d => d.value);
         yScale.domain(yDomain).nice();
         yAxisGroup.transition().call(d3.axisLeft(yScale));
+
+
+        // Update Y-axis label
+        const units = {
+            "Urban Population": "Population (Billions)",
+            "Rural Population": "Population (Billions)",
+            "Energy Consumption": "Energy (Quads)",
+            "CO2 Emissions": "CO2 Emissions (Gigatons)"
+        };
+        yAxisLabel.text(units[metric]);
+
 
         g.selectAll(".data-line").remove();
         g.selectAll(".hover-point").remove();
